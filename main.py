@@ -1,28 +1,39 @@
-# import sklearn numpy, spacy
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
 import spacy
 
-# load the `en_code_web_md model (of SpaCY?)`
 nlp = spacy.load("en_core_web_md")
-# define the function
-def check_threat_level(word):
-    # set the target text
-    target = nlp("confirm urgent account to release funds")
-    # generate the word token
-    token = nlp(word)
-    # check similarity between `target` and  `token`
-    sim = target.similarity(token)
-    return sim
 
-usr_input = input("Enter Text to scan..\n>>>")
+PHISHING_PHRASES = [
+    "confirm urgent account to release funds",
+    "verify your password immediately",
+    "your account has been suspended",
+    "click here to avoid suspension",
+    "congratulations you have won",
+    "update billing information now",
+    "unusual activity detected on your account",
+    "your payment failed please update",
+]
+
+PHISHING_VECTORS = [nlp(p) for p in PHISHING_PHRASES]
+
+def check_threat_level(text: str) -> float:
+    token = nlp(text)
+    return max(token.similarity(v) for v in PHISHING_VECTORS)
+
+def get_ngrams(words, n):
+    return [" ".join(words[i:i+n]) for i in range(len(words)-n+1)]
+
+usr_input = input("Enter text to scan:\n>>> ")
 words = usr_input.split()
-max_score = max([check_threat_level(w) for w in words])
-score = check_threat_level(usr_input)
 
-if score > 0.70 or max_score > 0.80:
-    print(f"HIGH ALERT!!!!!! (Sentence: {score:.2f}, Max Word: {max_score:.2f})")
-elif score > 0.40:
-    print("Mehhh, may be phising but idk i dont get paid enough")
+# All the chunks we want to check
+candidates = words + get_ngrams(words, 2) + get_ngrams(words, 3)
+
+sentence_score = check_threat_level(usr_input)
+max_score = max(check_threat_level(c) for c in candidates)
+
+if sentence_score > 0.70 or max_score > 0.80:
+    print(f"HIGH ALERT!!!!!! (Sentence: {sentence_score:.2f}, Max chunk: {max_score:.2f})")
+elif sentence_score > 0.40:
+    print("Mehhh, may be phishing but idk i dont get paid enough")
 else:
     print("This is clear")
